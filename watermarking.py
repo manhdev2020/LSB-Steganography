@@ -164,7 +164,7 @@ while True:
         sheet1.write(1, 2, Compare().psnr(original, lsb_encoded_img))
 
         book.save("Comparison.xls")
-        print("Comparison Results were saved as xls file!")
+        print("Kết quả so sánh đã được lưu dưới dạng file xls!")
         os.chdir("..")
     elif m == "4":
         print("Đã thoát!")
