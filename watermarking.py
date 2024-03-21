@@ -1,6 +1,11 @@
 import os
 import shutil
 from PIL import Image
+import xlwt
+import cv2
+import math
+from scipy import signal
+import numpy as np
 
 class LSB():
     # Phần mã hóa:
@@ -67,22 +72,45 @@ class LSB():
         return msg  # Trả về thông điệp đã giải mã
 
 
+class Compare():
+    # Hàm tính độ tương quan giữa hai ảnh
+    def correlation(self, img1, img2):
+        return signal.correlate2d (img1, img2)
+    
+    # Hàm tính sai số bình phương trung bình giữa hai ảnh
+    def meanSquareError(self, img1, img2):
+        error = np.sum((img1.astype('float') - img2.astype('float')) ** 2)
+        error /= float(img1.shape[0] * img1.shape[1]);
+        return error
+    
+    # Hàm tính PSNR (Peak Signal-to-Noise Ratio) giữa hai ảnh
+    def psnr(self, img1, img2):
+        mse = self.meanSquareError(img1,img2)
+        if mse == 0:
+            return 100
+        PIXEL_MAX = 255.0
+        return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
+
 #driver part :
 #deleting previous folders :
 if os.path.exists("Encoded_image/"):
     shutil.rmtree("Encoded_image/")
 if os.path.exists("Decoded_output/"):
     shutil.rmtree("Decoded_output/")
+if os.path.exists("Comparison_result/"):
+    shutil.rmtree("Comparison_result/")
 
 #creating new folders :
 os.makedirs("Encoded_image/")
 os.makedirs("Decoded_output/")
+os.makedirs("Comparison_result/")
+
 original_image_file = ""    # to make the file name global variable
 lsb_encoded_image_file = ""
 dwt_encoded_image_file = ""
 
 while True:
-    m = input("Nhấn '1' để encode, nhấn '2' để decode, nhấn '3' để thoát: ")
+    m = input("Nhấn '1' để encode, nhấn '2' để decode, nhấn '3' để compare, nhấn 4 để thoát: ")
 
     if m == "1":
         os.chdir("Original_image/")
@@ -111,5 +139,33 @@ while True:
         print("Văn bản ẩn đã được lưu dưới dạng file văn bản!")
         os.chdir("..")
     elif m == "3":
+        #comparison calls
+        os.chdir("Original_image/")
+        original = cv2.imread(original_image_file)
+        os.chdir("..")
+        os.chdir("Encoded_image/")
+        lsbEncoded = cv2.imread(lsb_encoded_image_file)
+#        dwtEncoded = cv2.imread(dwt_encoded_image_file)
+        original = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
+        lsb_encoded_img = cv2.cvtColor(lsbEncoded, cv2.COLOR_BGR2RGB)
+#        dwt_encoded_img = cv2.cvtColor(dwtEncoded, cv2.COLOR_BGR2RGB)
+        os.chdir("..")
+        os.chdir("Comparison_result/")
+
+        book = xlwt.Workbook()
+        sheet1=book.add_sheet("Sheet 1")
+        style_string = "font: bold on , color red; borders: bottom dashed"
+        style = xlwt.easyxf(style_string)
+        sheet1.write(0, 0, "Original vs", style=style)
+        sheet1.write(0, 1, "MSE", style=style)
+        sheet1.write(0, 2, "PSNR", style=style)
+        sheet1.write(1, 0, "LSB")
+        sheet1.write(1, 1, Compare().meanSquareError(original, lsb_encoded_img))
+        sheet1.write(1, 2, Compare().psnr(original, lsb_encoded_img))
+
+        book.save("Comparison.xls")
+        print("Comparison Results were saved as xls file!")
+        os.chdir("..")
+    elif m == "4":
         print("Đã thoát!")
         break
